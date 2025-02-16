@@ -20,14 +20,28 @@ const Auth = () => {
           .eq('id', session.user.id)
           .single();
         
-        if (profile && profile.subscription_status === 'active') {
+        if (profile?.subscription_status === 'active') {
           navigate("/");
         } else {
-          toast({
-            title: "Subscription Required",
-            description: "Please subscribe to access the application.",
-            variant: "destructive"
-          });
+          const { data: response } = await fetch(
+            `${window.location.origin}/functions/v1/stripe`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+            }
+          ).then(r => r.json());
+
+          if (response?.url) {
+            window.location.href = response.url;
+          } else {
+            toast({
+              title: "Error",
+              description: "Could not initiate subscription process. Please try again.",
+              variant: "destructive"
+            });
+          }
         }
       }
     };
