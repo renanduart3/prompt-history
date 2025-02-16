@@ -18,7 +18,9 @@ export type Database = {
           is_premium: boolean | null
           stripe_customer_id: string | null
           subscription_end_date: string | null
-          subscription_status: string | null
+          subscription_status:
+            | Database["public"]["Enums"]["subscription_status_type"]
+            | null
         }
         Insert: {
           country?: string | null
@@ -28,7 +30,9 @@ export type Database = {
           is_premium?: boolean | null
           stripe_customer_id?: string | null
           subscription_end_date?: string | null
-          subscription_status?: string | null
+          subscription_status?:
+            | Database["public"]["Enums"]["subscription_status_type"]
+            | null
         }
         Update: {
           country?: string | null
@@ -38,7 +42,9 @@ export type Database = {
           is_premium?: boolean | null
           stripe_customer_id?: string | null
           subscription_end_date?: string | null
-          subscription_status?: string | null
+          subscription_status?:
+            | Database["public"]["Enums"]["subscription_status_type"]
+            | null
         }
         Relationships: []
       }
@@ -50,7 +56,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      subscription_status_type:
+        | "active"
+        | "trialing"
+        | "canceled"
+        | "incomplete"
+        | "incomplete_expired"
+        | "past_due"
+        | "unpaid"
     }
     CompositeTypes: {
       [_ in never]: never

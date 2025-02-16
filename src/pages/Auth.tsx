@@ -14,11 +14,25 @@ const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_status')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile && profile.subscription_status === 'active') {
+          navigate("/");
+        } else {
+          toast({
+            title: "Subscription Required",
+            description: "Please subscribe to access the application.",
+            variant: "destructive"
+          });
+        }
       }
     };
     checkUser();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleGoogleLogin = async () => {
     try {
