@@ -16,8 +16,9 @@ interface UserProfile {
 
 const Index = () => {
   const [text, setText] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState("");
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,15 +47,53 @@ const Index = () => {
   const getPricingMessage = () => {
     if (!profile?.country) return null;
     
-    // Example regional pricing messages
     const pricingByRegion: Record<string, string> = {
       US: "$9.99/month",
       GB: "£7.99/month",
       EU: "€8.99/month",
-      // Add more regions as needed
     };
 
     return pricingByRegion[profile.country] || "$9.99/month";
+  };
+
+  const handleSubscribe = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to subscribe",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('stripe', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to initiate checkout. Please try again.",
+        variant: "destructive"
+      });
+      console.error('Subscription error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -100,15 +139,10 @@ const Index = () => {
               variant="default"
               size="lg"
               className="mt-6"
-              onClick={() => {
-                toast({
-                  title: "Subscribe Now",
-                  description: `Get unlimited access for ${getPricingMessage()}`,
-                });
-                // TODO: Implement subscription flow
-              }}
+              onClick={handleSubscribe}
+              disabled={isLoading}
             >
-              Subscribe Now
+              {isLoading ? "Loading..." : "Subscribe Now"}
             </Button>
           )}
         </div>
