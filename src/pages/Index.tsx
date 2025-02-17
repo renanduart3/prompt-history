@@ -16,7 +16,7 @@ interface UserProfile {
 
 const Index = () => {
   const [text, setText] = useState("");
-  const [isGenerating, setIsGenerating] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false); // Changed type to boolean
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
