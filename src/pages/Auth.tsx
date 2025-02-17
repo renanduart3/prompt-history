@@ -67,6 +67,21 @@ const Auth = () => {
     }
   };
 
+  const handleBypassAuth = async () => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: 'test@example.com',
+      password: 'test123',
+    });
+
+    if (error) {
+      toast({
+        title: "Bypass Failed",
+        description: "Could not sign in with test account. Make sure it exists in Supabase.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-secondary to-background flex items-center justify-center">
       <div className="max-w-md w-full mx-4">
@@ -75,15 +90,28 @@ const Auth = () => {
           <p className="text-muted-foreground">Sign in to continue to Promptopia</p>
         </div>
         
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full py-6 flex items-center justify-center gap-2 text-lg"
-          onClick={handleGoogleLogin}
-        >
-          <FcGoogle className="w-6 h-6" />
-          Continue with Google
-        </Button>
+        <div className="space-y-4">
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full py-6 flex items-center justify-center gap-2 text-lg"
+            onClick={handleGoogleLogin}
+          >
+            <FcGoogle className="w-6 h-6" />
+            Continue with Google
+          </Button>
+
+          {process.env.NODE_ENV === 'development' && (
+            <Button
+              variant="secondary"
+              size="lg"
+              className="w-full"
+              onClick={handleBypassAuth}
+            >
+              Bypass Auth (Dev Only)
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
