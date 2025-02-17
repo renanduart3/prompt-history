@@ -22,6 +22,7 @@ serve(async (req) => {
   try {
     event = stripe.webhooks.constructEvent(body, signature, endpointSecret)
   } catch (err) {
+    console.error(`Webhook Error: ${err.message}`)
     return new Response(`Webhook Error: ${err.message}`, { status: 400 })
   }
 
@@ -44,6 +45,8 @@ serve(async (req) => {
             subscription_end_date: new Date(subscription.current_period_end * 1000).toISOString(),
           })
           .eq('stripe_customer_id', customerId)
+        
+        console.log(`Updated subscription status for customer ${customerId} to ${subscription.status}`)
         break
       }
       case 'customer.subscription.deleted': {
@@ -57,6 +60,8 @@ serve(async (req) => {
             subscription_end_date: new Date().toISOString(),
           })
           .eq('stripe_customer_id', customerId)
+        
+        console.log(`Marked subscription as canceled for customer ${customerId}`)
         break
       }
     }
@@ -66,6 +71,7 @@ serve(async (req) => {
       status: 200,
     })
   } catch (error) {
+    console.error('Error processing webhook:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500 }
