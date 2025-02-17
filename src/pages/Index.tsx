@@ -7,7 +7,8 @@ import { Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
-const WORD_LIMIT = 6250;
+const PREMIUM_WORD_LIMIT = 6250;
+const FREE_WORD_LIMIT = 500; // Added free tier limit
 
 interface UserProfile {
   subscription_status: 'active' | 'trialing' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'unpaid';
@@ -16,10 +17,13 @@ interface UserProfile {
 
 const Index = () => {
   const [text, setText] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false); // Changed type to boolean
+  const [isGenerating, setIsGenerating] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const isPremium = profile?.subscription_status === 'active';
+  const currentWordLimit = isPremium ? PREMIUM_WORD_LIMIT : FREE_WORD_LIMIT;
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -96,22 +100,42 @@ const Index = () => {
     }
   };
 
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    const wordCount = getWordCount(newText);
+    
+    if (wordCount > currentWordLimit) {
+      toast({
+        title: "Word limit exceeded",
+        description: isPremium 
+          ? `Please keep your text under ${currentWordLimit} words`
+          : `Free users are limited to ${FREE_WORD_LIMIT} words. Upgrade to Premium for ${PREMIUM_WORD_LIMIT} words.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setText(newText);
+  };
+
   const handleGenerate = async () => {
     const wordCount = getWordCount(text);
     
-    if (wordCount > WORD_LIMIT) {
+    if (wordCount > currentWordLimit) {
       toast({
         title: "Word limit exceeded",
-        description: `Please keep your text under ${WORD_LIMIT} words. Current count: ${wordCount}`,
+        description: isPremium 
+          ? `Please keep your text under ${currentWordLimit} words. Current count: ${wordCount}`
+          : `Free users are limited to ${FREE_WORD_LIMIT} words. Upgrade to Premium for ${PREMIUM_WORD_LIMIT} words.`,
         variant: "destructive"
       });
       return;
     }
 
-    if (profile?.subscription_status !== 'active') {
+    if (!isPremium && wordCount > FREE_WORD_LIMIT) {
       toast({
-        title: "Subscription Required",
-        description: `Please subscribe to use this feature. ${getPricingMessage()}`,
+        title: "Premium Feature",
+        description: `Please subscribe to process more than ${FREE_WORD_LIMIT} words. ${getPricingMessage()}`,
         variant: "destructive"
       });
       return;
@@ -134,16 +158,21 @@ const Index = () => {
             Generate perfect image prompts from your video scripts and transcriptions
             in seconds.
           </p>
-          {profile?.subscription_status !== 'active' && (
-            <Button
-              variant="default"
-              size="lg"
-              className="mt-6"
-              onClick={handleSubscribe}
-              disabled={isLoading}
-            >
-              {isLoading ? "Loading..." : "Subscribe Now"}
-            </Button>
+          {!isPremium && (
+            <div className="mt-4">
+              <p className="text-muted-foreground mb-2">
+                Free tier: Up to {FREE_WORD_LIMIT} words
+              </p>
+              <Button
+                variant="default"
+                size="lg"
+                className="mt-2"
+                onClick={handleSubscribe}
+                disabled={isLoading}
+              >
+                {isLoading ? "Loading..." : `Upgrade to Premium (${PREMIUM_WORD_LIMIT} words)`}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -155,13 +184,18 @@ const Index = () => {
                 Your Script or Transcription
               </label>
               <Textarea
-                placeholder={`Paste your text here (max ${WORD_LIMIT} words)...`}
+                placeholder={`Paste your text here (max ${currentWordLimit} words)...`}
                 className="min-h-[200px] input-field"
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={handleTextChange}
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Word count: {getWordCount(text)} / {WORD_LIMIT}
+                Word count: {getWordCount(text)} / {currentWordLimit}
+                {!isPremium && (
+                  <span className="ml-2 text-primary">
+                    (Free tier: {FREE_WORD_LIMIT} words)
+                  </span>
+                )}
               </p>
             </div>
 
@@ -169,7 +203,7 @@ const Index = () => {
               <Button
                 onClick={handleGenerate}
                 className="button-primary"
-                disabled={!text || isGenerating || profile?.subscription_status !== 'active'}
+                disabled={!text || isGenerating}
               >
                 <Wand2 className="w-5 h-5 mr-2" />
                 {isGenerating ? "Generating..." : "Generate Prompts"}
