@@ -23,19 +23,30 @@ const Auth = () => {
         if (profile?.subscription_status === 'active') {
           navigate("/");
         } else {
-          const { data: response } = await fetch(
-            `${window.location.origin}/functions/v1/stripe`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            }
-          ).then(r => r.json());
+          try {
+            const response = await fetch(
+              `${window.location.origin}/functions/v1/stripe`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+              }
+            );
 
-          if (response?.url) {
-            window.location.href = response.url;
-          } else {
+            if (!response.ok) {
+              throw new Error('Failed to fetch from Stripe function');
+            }
+
+            const data = await response.json();
+            
+            if (data?.url) {
+              window.location.href = data.url;
+            } else {
+              throw new Error('No checkout URL received');
+            }
+          } catch (error) {
+            console.error('Stripe function error:', error);
             toast({
               title: "Error",
               description: "Could not initiate subscription process. Please try again.",
