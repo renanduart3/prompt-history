@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
 const PREMIUM_WORD_LIMIT = 6250;
-const FREE_WORD_LIMIT = 500; // Added free tier limit
+const FREE_WORD_LIMIT = 500;
 
 interface UserProfile {
   subscription_status: 'active' | 'trialing' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'unpaid';
@@ -44,25 +44,9 @@ const Index = () => {
     fetchUserProfile();
   }, []);
 
-  const getWordCount = (text: string) => {
-    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
-  };
-
-  const getPricingMessage = () => {
-    if (!profile?.country) return null;
-    
-    const pricingByRegion: Record<string, string> = {
-      US: "$9.99/month",
-      GB: "£7.99/month",
-      EU: "€8.99/month",
-    };
-
-    return pricingByRegion[profile.country] || "$9.99/month";
-  };
-
   const handleSubscribe = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -74,30 +58,41 @@ const Index = () => {
         return;
       }
 
-      const response = await supabase.functions.invoke('stripe', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      const response = await fetch(
+        `${window.location.origin}/functions/v1/stripe`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      );
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (!response.ok) {
+        throw new Error('Failed to fetch from Stripe function');
       }
 
-      if (response.data?.url) {
-        window.location.href = response.data.url;
+      const data = await response.json();
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
       }
     } catch (error) {
+      console.error('Subscription error:', error);
       toast({
         title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
+        description: "Could not initiate subscription process. Please try again.",
         variant: "destructive"
       });
-      console.error('Subscription error:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getWordCount = (text: string) => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -125,7 +120,7 @@ const Index = () => {
       toast({
         title: "Word limit exceeded",
         description: isPremium 
-          ? `Please keep your text under ${currentWordLimit} words. Current count: ${wordCount}`
+          ? `Please keep your text under ${currentWordLimit} words`
           : `Free users are limited to ${FREE_WORD_LIMIT} words. Upgrade to Premium for ${PREMIUM_WORD_LIMIT} words.`,
         variant: "destructive"
       });
@@ -135,7 +130,7 @@ const Index = () => {
     if (!isPremium && wordCount > FREE_WORD_LIMIT) {
       toast({
         title: "Premium Feature",
-        description: `Please subscribe to process more than ${FREE_WORD_LIMIT} words. ${getPricingMessage()}`,
+        description: `Please subscribe to process more than ${FREE_WORD_LIMIT} words.`,
         variant: "destructive"
       });
       return;
@@ -149,26 +144,24 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-secondary to-background">
       <div className="container mx-auto px-4 py-16">
-        {/* Hero Section */}
-        <div className="text-center mb-16 animate-fade-in">
+        <div className="text-center mb-16">
           <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
             Transform Text into Visual Prompts
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Generate perfect image prompts from your video scripts and transcriptions
-            in seconds.
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+            Generate perfect image prompts from your video scripts and transcriptions in seconds.
           </p>
           {!isPremium && (
-            <div className="mt-4">
-              <p className="text-muted-foreground mb-2">
-                Free tier: Up to {FREE_WORD_LIMIT} words
-              </p>
+            <div className="mb-8">
+              <div className="text-lg mb-4">
+                <span className="font-semibold">Free Tier:</span> Up to {FREE_WORD_LIMIT} words
+              </div>
               <Button
                 variant="default"
                 size="lg"
-                className="mt-2"
                 onClick={handleSubscribe}
                 disabled={isLoading}
+                className="animate-pulse"
               >
                 {isLoading ? "Loading..." : `Upgrade to Premium (${PREMIUM_WORD_LIMIT} words)`}
               </Button>
@@ -176,8 +169,7 @@ const Index = () => {
           )}
         </div>
 
-        {/* Main Card */}
-        <Card className="max-w-4xl mx-auto p-6 md:p-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+        <Card className="max-w-4xl mx-auto p-6 md:p-8">
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -185,7 +177,7 @@ const Index = () => {
               </label>
               <Textarea
                 placeholder={`Paste your text here (max ${currentWordLimit} words)...`}
-                className="min-h-[200px] input-field"
+                className="min-h-[200px]"
                 value={text}
                 onChange={handleTextChange}
               />
@@ -202,7 +194,7 @@ const Index = () => {
             <div className="flex justify-center">
               <Button
                 onClick={handleGenerate}
-                className="button-primary"
+                className="w-full sm:w-auto"
                 disabled={!text || isGenerating}
               >
                 <Wand2 className="w-5 h-5 mr-2" />
@@ -211,33 +203,6 @@ const Index = () => {
             </div>
           </div>
         </Card>
-
-        {/* Features Section */}
-        <div className="grid md:grid-cols-3 gap-6 mt-16">
-          {[
-            {
-              title: "Script to Prompts",
-              description: "Convert your video scripts into detailed image prompts automatically",
-            },
-            {
-              title: "Smart Segmentation",
-              description: "Automatically break down your content into perfect prompt-sized chunks",
-            },
-            {
-              title: "Professional Results",
-              description: "Get high-quality prompts optimized for AI image generation",
-            },
-          ].map((feature, index) => (
-            <Card
-              key={index}
-              className="p-6 text-center card-hover animate-fade-in"
-              style={{ animationDelay: `${0.4 + index * 0.1}s` }}
-            >
-              <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-              <p className="text-muted-foreground">{feature.description}</p>
-            </Card>
-          ))}
-        </div>
       </div>
     </div>
   );
