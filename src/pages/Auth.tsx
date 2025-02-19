@@ -4,8 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { FcGoogle } from "react-icons/fc";
-import { BsGithub, BsTwitterX } from "react-icons/bs";
-import { FaLinkedin } from "react-icons/fa";
 import { useToast } from "@/components/ui/use-toast";
 import { Wand2 } from "lucide-react";
 
@@ -23,10 +21,10 @@ const Auth = () => {
     checkUser();
   }, [navigate]);
 
-  const handleSocialLogin = async (provider: 'google' | 'github' | 'twitter' | 'linkedin_oidc') => {
+  const handleGoogleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/`
         }
@@ -67,40 +65,10 @@ const Auth = () => {
             variant="outline"
             size="lg"
             className="w-full py-6 hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-            onClick={() => handleSocialLogin('google')}
+            onClick={handleGoogleLogin}
           >
             <FcGoogle className="w-5 h-5 mr-2" />
             Continue with Google
-          </Button>
-
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full py-6 hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-            onClick={() => handleSocialLogin('github')}
-          >
-            <BsGithub className="w-5 h-5 mr-2" />
-            Continue with GitHub
-          </Button>
-
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full py-6 hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-            onClick={() => handleSocialLogin('twitter')}
-          >
-            <BsTwitterX className="w-5 h-5 mr-2" />
-            Continue with Twitter
-          </Button>
-
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full py-6 hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-            onClick={() => handleSocialLogin('linkedin_oidc')}
-          >
-            <FaLinkedin className="w-5 h-5 mr-2" />
-            Continue with LinkedIn
           </Button>
 
           <div className="mt-6 text-center">
