@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Wand2, Download, Star, Image, Users, Github, Twitter, Linkedin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { processText } from "@/services/api";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PREMIUM_WORD_LIMIT = 6250;
 const FREE_WORD_LIMIT = 500;
@@ -14,10 +16,18 @@ interface UserProfile {
   country: string | null;
 }
 
+interface UserUsage {
+  prompt_count: number;
+  total_words_processed: number;
+  last_usage_date: string;
+}
+
 const Index = () => {
   const [text, setText] = useState("");
+  const [processedText, setProcessedText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [usage, setUsage] = useState<UserUsage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -25,7 +35,7 @@ const Index = () => {
   const currentWordLimit = isPremium ? PREMIUM_WORD_LIMIT : FREE_WORD_LIMIT;
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const fetchUserData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: userProfile } = await supabase
@@ -37,10 +47,24 @@ const Index = () => {
         if (userProfile) {
           setProfile(userProfile);
         }
+
+        const { data: userUsage } = await supabase
+          .from('user_usage')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (userUsage) {
+          setUsage(userUsage);
+        } else {
+          await supabase
+            .from('user_usage')
+            .insert([{ user_id: session.user.id }]);
+        }
       }
     };
 
-    fetchUserProfile();
+    fetchUserData();
   }, []);
 
   const handleSubscribe = async () => {
@@ -112,6 +136,20 @@ const Index = () => {
     setText(newText);
   };
 
+  const updateUsage = async (wordCount: number) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await supabase
+        .from('user_usage')
+        .update({
+          prompt_count: (usage?.prompt_count || 0) + 1,
+          total_words_processed: (usage?.total_words_processed || 0) + wordCount,
+          last_usage_date: new Date().toISOString()
+        })
+        .eq('user_id', session.user.id);
+    }
+  };
+
   const handleGenerate = async () => {
     const wordCount = getWordCount(text);
     
@@ -136,12 +174,30 @@ const Index = () => {
     }
 
     setIsGenerating(true);
-    setTimeout(() => setIsGenerating(false), 2000);
+    try {
+      const result = await processText(text);
+      setProcessedText(result.processed_text);
+      await updateUsage(wordCount);
+      
+      toast({
+        title: "Success",
+        description: "Text processed successfully!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process text. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleDownloadTxt = () => {
+    const content = processedText || text;
     const element = document.createElement("a");
-    const file = new Blob([text], { type: 'text/plain' });
+    const file = new Blob([content], { type: 'text/plain' });
     element.href = URL.createObjectURL(file);
     element.download = "generated-prompts.txt";
     document.body.appendChild(element);
@@ -202,32 +258,65 @@ const Index = () => {
                     </span>
                   )}
                 </p>
-                {text && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadTxt}
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download as TXT
-                  </Button>
-                )}
               </div>
             </div>
 
-            <div className="flex justify-center">
+            {processedText && (
+              <div className="mt-6">
+                <label className="block text-sm font-medium mb-2">
+                  Processed Text
+                </label>
+                <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                  <div className="whitespace-pre-wrap">{processedText}</div>
+                </ScrollArea>
+              </div>
+            )}
+
+            <div className="flex justify-center gap-4">
               <Button
                 onClick={handleGenerate}
                 className="w-full sm:w-auto"
                 disabled={!text || isGenerating}
               >
                 <Wand2 className="w-5 h-5 mr-2" />
-                {isGenerating ? "Generating..." : "Generate Prompts"}
+                {isGenerating ? "Processing..." : "Process Text"}
               </Button>
+
+              {(text || processedText) && (
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadTxt}
+                  className="w-full sm:w-auto"
+                >
+                  <Download className="w-5 h-5 mr-2" />
+                  Download as TXT
+                </Button>
+              )}
             </div>
           </div>
         </Card>
+
+        {usage && (
+          <Card className="max-w-4xl mx-auto p-6 md:p-8 mb-16">
+            <h2 className="text-2xl font-bold mb-4">Your Usage Statistics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4">
+                <h3 className="text-lg font-medium mb-2">Prompts Generated</h3>
+                <p className="text-3xl font-bold">{usage.prompt_count}</p>
+              </div>
+              <div className="text-center p-4">
+                <h3 className="text-lg font-medium mb-2">Words Processed</h3>
+                <p className="text-3xl font-bold">{usage.total_words_processed}</p>
+              </div>
+              <div className="text-center p-4">
+                <h3 className="text-lg font-medium mb-2">Last Usage</h3>
+                <p className="text-3xl font-bold">
+                  {new Date(usage.last_usage_date).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           <Card className="p-6 text-center animate-fade-in hover:shadow-lg transition-all">
