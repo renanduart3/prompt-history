@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // TODO: Replace with your Heroku FastAPI URL
-const BASE_URL = process.env.BACKEND_URL || 'https://your-heroku-app.herokuapp.com';
+const BASE_URL = 'https://your-heroku-app.herokuapp.com';
 
 export const api = axios.create({
   baseURL: BASE_URL,

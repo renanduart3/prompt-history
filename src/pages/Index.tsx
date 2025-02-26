@@ -1,174 +1,65 @@
-import { useState, useEffect } from "react";
+// language: tsx
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Wand2, Download, Star, Image, Users, Github, Twitter, Linkedin } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { Wand2, Download, Image, Coffee } from "lucide-react";
 import { processText } from "@/services/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/components/ui/use-toast";
+import { apiKeys } from "../config/apikeys";
 
-const PREMIUM_WORD_LIMIT = 6250;
-const FREE_WORD_LIMIT = 500;
+const WORD_LIMIT = 10000;
 
-interface UserProfile {
-  subscription_status: 'active' | 'trialing' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'unpaid';
-  country: string | null;
-}
-
-interface UserUsage {
-  prompt_count: number;
-  total_words_processed: number;
-  last_usage_date: string;
-}
+const providers = [
+  { key: "chatgpt", name: "ChatGPT" },
+  { key: "claude", name: "Claude" },
+  { key: "gemini", name: "Gemini" },
+  { key: "deepseek", name: "DeepSeek" },
+];
 
 const Index = () => {
   const [text, setText] = useState("");
   const [processedText, setProcessedText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [usage, setUsage] = useState<UserUsage | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [imagesPerMinute, setImagesPerMinute] = useState(1);
+  const [selectedProvider, setSelectedProvider] = useState("");
   const { toast } = useToast();
 
-  const isPremium = profile?.subscription_status === 'active';
-  const currentWordLimit = isPremium ? PREMIUM_WORD_LIMIT : FREE_WORD_LIMIT;
+  const availableProviders = providers.filter(
+    (provider) => apiKeys[provider.key as keyof typeof apiKeys]
+  );
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('subscription_status, country')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (userProfile) {
-          setProfile(userProfile);
-        }
-
-        const { data: userUsage } = await supabase
-          .from('user_usage')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (userUsage) {
-          setUsage(userUsage);
-        } else {
-          await supabase
-            .from('user_usage')
-            .insert([{ user_id: session.user.id }]);
-        }
-      }
-    };
-
-    fetchUserData();
-  }, []);
-
-  const handleSubscribe = async () => {
-    setIsLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to subscribe",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const response = await fetch(
-        `${window.location.origin}/functions/v1/stripe`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch from Stripe function');
-      }
-
-      const data = await response.json();
-      
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (error) {
-      console.error('Subscription error:', error);
-      toast({
-        title: "Error",
-        description: "Could not initiate subscription process. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getWordCount = (text: string) => {
-    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
-  };
+  const getWordCount = (text: string) =>
+    text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     const wordCount = getWordCount(newText);
-    
-    if (wordCount > currentWordLimit) {
+
+    if (wordCount > WORD_LIMIT) {
       toast({
         title: "Word limit exceeded",
-        description: isPremium 
-          ? `Please keep your text under ${currentWordLimit} words`
-          : `Free users are limited to ${FREE_WORD_LIMIT} words. Upgrade to Premium for ${PREMIUM_WORD_LIMIT} words.`,
-        variant: "destructive"
+        description: `Please keep your text under ${WORD_LIMIT} words`,
+        variant: "destructive",
       });
       return;
     }
-    
-    setText(newText);
-  };
 
-  const updateUsage = async (wordCount: number) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      await supabase
-        .from('user_usage')
-        .update({
-          prompt_count: (usage?.prompt_count || 0) + 1,
-          total_words_processed: (usage?.total_words_processed || 0) + wordCount,
-          last_usage_date: new Date().toISOString()
-        })
-        .eq('user_id', session.user.id);
-    }
+    setText(newText);
   };
 
   const handleGenerate = async () => {
     const wordCount = getWordCount(text);
-    
-    if (wordCount > currentWordLimit) {
+
+    if (wordCount > WORD_LIMIT) {
       toast({
         title: "Word limit exceeded",
-        description: isPremium 
-          ? `Please keep your text under ${currentWordLimit} words`
-          : `Free users are limited to ${FREE_WORD_LIMIT} words. Upgrade to Premium for ${PREMIUM_WORD_LIMIT} words.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!isPremium && wordCount > FREE_WORD_LIMIT) {
-      toast({
-        title: "Premium Feature",
-        description: `Please subscribe to process more than ${FREE_WORD_LIMIT} words.`,
-        variant: "destructive"
+        description: `Please keep your text under ${WORD_LIMIT} words`,
+        variant: "destructive",
       });
       return;
     }
@@ -177,8 +68,6 @@ const Index = () => {
     try {
       const result = await processText(text);
       setProcessedText(result.processed_text);
-      await updateUsage(wordCount);
-      
       toast({
         title: "Success",
         description: "Text processed successfully!",
@@ -186,8 +75,9 @@ const Index = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to process text. Please try again.",
-        variant: "destructive"
+        description:
+          error.message || "Failed to process text. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
@@ -197,7 +87,7 @@ const Index = () => {
   const handleDownloadTxt = () => {
     const content = processedText || text;
     const element = document.createElement("a");
-    const file = new Blob([content], { type: 'text/plain' });
+    const file = new Blob([content], { type: "text/plain" });
     element.href = URL.createObjectURL(file);
     element.download = "generated-prompts.txt";
     document.body.appendChild(element);
@@ -205,38 +95,74 @@ const Index = () => {
     document.body.removeChild(element);
     toast({
       title: "Download started",
-      description: "Your text file is being downloaded."
+      description: "Your text file is being downloaded.",
     });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-secondary to-background">
+    <div className="min-h-screen bg-gradient-to-b from-secondary to-background relative">
+      {/* Floating Buy Me a Coffee Button */}
+      <a
+        href="https://www.buymeacoffee.com/yourusername"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed top-4 right-4 bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-full shadow-lg flex items-center z-50"
+      >
+        <Coffee className="w-5 h-5 mr-2" />
+        Buy me a coffee
+      </a>
+
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
             Transform Text into Visual Prompts
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            Generate perfect image prompts from your video scripts and transcriptions in seconds.
+            Generate perfect image prompts from your video scripts and
+            transcriptions in seconds.
           </p>
-          {!isPremium && (
-            <div className="mb-8">
-              <div className="text-lg mb-4">
-                <span className="font-semibold">Free Tier:</span> Up to {FREE_WORD_LIMIT} words
-              </div>
-              <Button
-                variant="default"
-                size="lg"
-                onClick={handleSubscribe}
-                disabled={isLoading}
-                className="animate-pulse"
-              >
-                {isLoading ? "Loading..." : `Upgrade to Premium (${PREMIUM_WORD_LIMIT} words)`}
-              </Button>
-            </div>
-          )}
         </div>
+        {/* Images per minute input */}
+        <div className="max-w-4xl mx-auto p-4 md:p-2 flex flex-col md:flex-row gap-4">
+          {/* Images per minute input */}
+          <div className="w-full md:w-1/3">
+            <label className="block text-sm font-medium mb-2">
+              Images per minute
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={imagesPerMinute}
+              onChange={(e) => setImagesPerMinute(Number(e.target.value))}
+              className="w-full border rounded-md px-3 py-2"
+            />
+          </div>
 
+          {/* Provider selection */}
+          <div className="w-full md:w-2/3">
+            <label className="block text-sm font-medium mb-2">
+              Select AI Provider
+            </label>
+            <select
+              className="w-full border rounded-md px-3 py-2"
+              value={selectedProvider}
+              onChange={(e) => setSelectedProvider(e.target.value)}
+            >
+              <option value="" disabled>
+                Select an AI Provider
+              </option>
+              {availableProviders.map((provider) => (
+                <option key={provider.key} value={provider.key}>
+                  {provider.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only providers with API keys configured in <code>apiKeys.ts</code>{" "}
+              will appear.
+            </p>
+          </div>
+        </div>
         <Card className="max-w-4xl mx-auto p-6 md:p-8 mb-16">
           <div className="space-y-6">
             <div>
@@ -244,19 +170,18 @@ const Index = () => {
                 Your Script or Transcription
               </label>
               <Textarea
-                placeholder={`Paste your text here (max ${currentWordLimit} words)...`}
-                className="min-h-[200px]"
+                placeholder={`Paste your text here (max ${WORD_LIMIT} words)...`}
+                className="min-h-[500px]"
                 value={text}
                 onChange={handleTextChange}
               />
               <div className="flex justify-between items-center mt-2">
                 <p className="text-sm text-muted-foreground">
-                  Word count: {getWordCount(text)} / {currentWordLimit}
-                  {!isPremium && (
-                    <span className="ml-2 text-primary">
-                      (Free tier: {FREE_WORD_LIMIT} words)
-                    </span>
-                  )}
+                  Word count: {getWordCount(text)} / {WORD_LIMIT}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Time estimated of video: {Math.ceil(getWordCount(text) / 150)}{" "}
+                  min
                 </p>
               </div>
             </div>
@@ -296,138 +221,43 @@ const Index = () => {
           </div>
         </Card>
 
-        {usage && (
-          <Card className="max-w-4xl mx-auto p-6 md:p-8 mb-16">
-            <h2 className="text-2xl font-bold mb-4">Your Usage Statistics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4">
-                <h3 className="text-lg font-medium mb-2">Prompts Generated</h3>
-                <p className="text-3xl font-bold">{usage.prompt_count}</p>
-              </div>
-              <div className="text-center p-4">
-                <h3 className="text-lg font-medium mb-2">Words Processed</h3>
-                <p className="text-3xl font-bold">{usage.total_words_processed}</p>
-              </div>
-              <div className="text-center p-4">
-                <h3 className="text-lg font-medium mb-2">Last Usage</h3>
-                <p className="text-3xl font-bold">
-                  {new Date(usage.last_usage_date).toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          <Card className="p-6 text-center animate-fade-in hover:shadow-lg transition-all">
-            <Image className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-2xl font-bold mb-2">1,234</h3>
-            <p className="text-muted-foreground">Images Generated</p>
-          </Card>
-          <Card className="p-6 text-center animate-fade-in hover:shadow-lg transition-all">
-            <Users className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-2xl font-bold mb-2">789</h3>
-            <p className="text-muted-foreground">Happy Users</p>
-          </Card>
-          <Card className="p-6 text-center animate-fade-in hover:shadow-lg transition-all">
-            <Star className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-2xl font-bold mb-2">4.9</h3>
-            <p className="text-muted-foreground">Average Rating</p>
-          </Card>
-        </div>
-
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">Latest Generations</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="aspect-square rounded-lg bg-accent/50 overflow-hidden hover:scale-105 transition-transform cursor-pointer animate-fade-in"
-              >
-                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent flex items-center justify-center">
-                  <Image className="w-8 h-8 text-primary/40" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">What Users Say</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Sarah Johnson",
-                role: "Content Creator",
-                comment: "This tool has revolutionized my content creation process!",
-                rating: 5
-              },
-              {
-                name: "Mike Chen",
-                role: "Video Producer",
-                comment: "Saves me hours of work with precise image prompts.",
-                rating: 5
-              },
-              {
-                name: "Emma Davis",
-                role: "Social Media Manager",
-                comment: "The premium features are absolutely worth it.",
-                rating: 4
-              }
-            ].map((testimonial, i) => (
-              <Card key={i} className="p-6 hover:shadow-lg transition-all animate-fade-in">
-                <div className="flex items-center gap-1 mb-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${
-                        i < testimonial.rating ? "text-primary fill-primary" : "text-muted-foreground"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-4">{testimonial.comment}</p>
-                <div className="font-medium">{testimonial.name}</div>
-                <div className="text-sm text-muted-foreground">{testimonial.role}</div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
         <footer className="border-t pt-16 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div>
               <h3 className="font-bold mb-4">About Us</h3>
               <p className="text-muted-foreground mb-4">
-                We're dedicated to transforming your scripts into perfect image prompts,
-                making content creation easier than ever.
+                We're dedicated to transforming your scripts into perfect image
+                prompts, making content creation easier than ever.
               </p>
             </div>
             <div>
               <h3 className="font-bold mb-4">Useful Links</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li>
-                  <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+                  <a href="#" className="hover:text-primary transition-colors">
+                    Terms of Service
+                  </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+                  <a href="#" className="hover:text-primary transition-colors">
+                    Privacy Policy
+                  </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-primary transition-colors">Contact Us</a>
+                  <a href="#" className="hover:text-primary transition-colors">
+                    Contact Us
+                  </a>
                 </li>
               </ul>
             </div>
             <div>
               <h3 className="font-bold mb-4">Connect With Us</h3>
               <div className="flex gap-4">
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Github className="w-6 h-6" />
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Twitter className="w-6 h-6" />
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Linkedin className="w-6 h-6" />
+                <a
+                  href="#"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Image className="w-6 h-6" />
                 </a>
               </div>
             </div>
