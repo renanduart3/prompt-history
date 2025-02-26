@@ -120,7 +120,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-secondary to-background relative">
       <a
-        href="https://www.buymeacoffee.com/yourusername"
+        href="https://www.buymeacoffee.com/renan.duart3"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed top-4 right-4 bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-full shadow-lg flex items-center z-50"

@@ -1,69 +1,60 @@
-# Welcome to your Lovable project
+# Promptopia Creation Platform
 
-## Project info
+Plataforma para geração automatizada de prompts de imagens com base em roteiros de vídeo, permitindo integração com múltiplos provedores de IA.
 
-**URL**: https://lovable.dev/projects/934377e9-83c8-4fce-b8de-9e757746355f
+## 🚀 Funcionalidades
+- Processa scripts de vídeo e divide em blocos configuráveis.
+- Gera prompts descritivos para imagens de forma automatizada.
+- Suporte a múltiplos provedores de IA (ChatGPT, Claude, Gemini, DeepSeek).
+- Seleção dinâmica de provedores e configuração local de API keys.
 
-## How can I edit this code?
+## 🛠️ Tecnologias Utilizadas
+- [React](https://react.dev/) + [Vite](https://vitejs.dev/)  
+- [TypeScript](https://www.typescriptlang.org/)  
+- [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)  
+- [Supabase](https://supabase.com/) e [Stripe](https://stripe.com/) (integrações futuras)  
 
-There are several ways of editing your application.
+## ⚙️ Instalação
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/renanduart3/promptopia-creation-platform.git
+   cd promptopia-creation-platform
+   ```
 
-**Use Lovable**
+2. Instale as dependências:
+   ```bash
+   npm install
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/934377e9-83c8-4fce-b8de-9e757746355f) and start prompting.
+3. Configure as **API Keys** criando um arquivo `.env` na raiz do projeto com o seguinte conteúdo:
+   ```env
+   VITE_CHATGPT_API_KEY=your_chatgpt_api_key_here
+   VITE_CLAUDE_API_KEY=your_claude_api_key_here
+   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+   VITE_DEEPSEEK_API_KEY=your_deepseek_api_key_here
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+   ⚠️ **Importante:** A única API gratuita para rodar localmente no momento é a do **Gemini** (Google AI Studio). Você pode gerar sua chave gratuitamente em:  
+   👉 [Google AI Studio - API Key](https://aistudio.google.com/apikey)
 
-**Use your preferred IDE**
+4. Execute o projeto:
+   ```bash
+   npm run dev
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📂 Estrutura Básica do Projeto
+- `src/components/` – Componentes reutilizáveis da interface.
+- `src/utils/translations.ts` – Sistema de traduções manual (Inglês e Português).
+- `src/services/` – Comunicação com provedores de IA.
+- `src/hooks/` – Hooks customizados.
+- `src/pages/` – Páginas principais da aplicação.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📝 Contribuição
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
 
-Follow these steps:
+## 🛡️ Licença
+Este projeto está sob a licença MIT.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/934377e9-83c8-4fce-b8de-9e757746355f) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+---
+🔗 Repositório: [promptopia-creation-platform](https://github.com/renanduart3/promptopia-creation-platform)  
+💻 Desenvolvido com 💙 por Renan Duarte
