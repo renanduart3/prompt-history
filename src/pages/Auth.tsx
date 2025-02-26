@@ -50,7 +50,7 @@ const Auth = () => {
           </div>
           
           <h1 className="text-4xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
-            Promptopia
+            Prompt History
           </h1>
           <p className="text-muted-foreground text-lg mb-2">
             Transform Your Text into Visual Prompts

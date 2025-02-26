@@ -1,4 +1,4 @@
-# Promptopia Creation Platform
+# Prompt History Creation Platform
 
 Plataforma para geração automatizada de prompts de imagens com base em roteiros de vídeo, permitindo integração com múltiplos provedores de IA.
 
@@ -17,8 +17,8 @@ Plataforma para geração automatizada de prompts de imagens com base em roteiro
 ## ⚙️ Instalação
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/renanduart3/promptopia-creation-platform.git
-   cd promptopia-creation-platform
+   git clone https://github.com/renanduart3/Prompt History-creation-platform.git
+   cd Prompt History-creation-platform
    ```
 
 2. Instale as dependências:
@@ -56,5 +56,5 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull r
 Este projeto está sob a licença MIT.
 
 ---
-🔗 Repositório: [promptopia-creation-platform](https://github.com/renanduart3/promptopia-creation-platform)  
+🔗 Repositório: [Prompt History-creation-platform](https://github.com/renanduart3/Prompt History-creation-platform)  
 💻 Desenvolvido com 💙 por Renan Duarte
